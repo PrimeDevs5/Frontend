@@ -1,21 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Bot, User, Loader2, FileText } from 'lucide-react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { useLanguage } from '../../contexts/LanguageContext.jsx';
 
 const ChatBot = ({ document }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: 'bot',
-      content: `Hello! I'm your legal document assistant. I've analyzed "${document?.name || 'your document'}" and I'm here to help you understand its contents. Ask me anything about the contract terms, clauses, or any specific sections you'd like clarification on.\n\nNote: I'm currently running with enhanced AI capabilities, but I can also provide basic document analysis if needed.`,
-      timestamp: new Date()
-    }
-  ]);
+  const { currentLanguage, translate, translateResponse, t } = useLanguage();
+  const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Initialize greeting message when language changes
+  useEffect(() => {
+    const greetingMessage = {
+      id: 1,
+      type: 'bot',
+      content: `${t.hello} ${t.analysisComplete} ${t.askAnything}`,
+      timestamp: new Date()
+    };
+    setMessages([greetingMessage]);
+  }, [currentLanguage, t]);
 
   // Initialize Gemini AI (you'll need to add your API key)
   const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDp8UDk012Fs6iAoU71MNmbx0IRE5S6_5w');
@@ -35,22 +41,31 @@ const ChatBot = ({ document }) => {
   }, [isOpen]);
 
   // Fallback responses for when API is not available
-  const generateFallbackResponse = (userMessage) => {
+  const generateFallbackResponse = async (userMessage) => {
     const lowerMessage = userMessage.toLowerCase();
     
+    let fallbackText = "";
+    
     if (lowerMessage.includes('salary') || lowerMessage.includes('compensation') || lowerMessage.includes('pay')) {
-      return "Based on the document, the base salary is $225,000 per year with an annual bonus target of 25% of the base salary. The salary can be increased but not decreased during the employment term.";
+      fallbackText = "Based on the document, the base salary is $225,000 per year with an annual bonus target of 25% of the base salary. The salary can be increased but not decreased during the employment term.";
     } else if (lowerMessage.includes('term') || lowerMessage.includes('duration') || lowerMessage.includes('length')) {
-      return "The employment term is for 3 years and automatically renews for successive 1-year periods unless either party provides 60 days written notice of non-renewal.";
+      fallbackText = "The employment term is for 3 years and automatically renews for successive 1-year periods unless either party provides 60 days written notice of non-renewal.";
     } else if (lowerMessage.includes('notice') || lowerMessage.includes('termination')) {
-      return "The contract requires 60 days written notice for non-renewal, which is longer than the standard 30 days.";
+      fallbackText = "The contract requires 60 days written notice for non-renewal, which is longer than the standard 30 days.";
     } else if (lowerMessage.includes('position') || lowerMessage.includes('role') || lowerMessage.includes('duties')) {
-      return "The position is Chief Technology Officer reporting directly to the CEO, with duties assigned by the CEO or Board of Directors.";
+      fallbackText = "The position is Chief Technology Officer reporting directly to the CEO, with duties assigned by the CEO or Board of Directors.";
     } else if (lowerMessage.includes('exclusivity') || lowerMessage.includes('other work') || lowerMessage.includes('side job')) {
-      return "There's an exclusivity clause that requires the employee to devote substantially all business time to this role and prohibits other paid work without Board approval.";
+      fallbackText = "There's an exclusivity clause that requires the employee to devote substantially all business time to this role and prohibits other paid work without Board approval.";
     } else {
-      return "I can help you understand this employment contract. You can ask me about salary, contract terms, position duties, termination clauses, or any other aspects of the document. Please try rephrasing your question or ask about a specific section.";
+      fallbackText = "I can help you understand this employment contract. You can ask me about salary, contract terms, position duties, termination clauses, or any other aspects of the document. Please try rephrasing your question or ask about a specific section.";
     }
+    
+    // Translate the fallback response if needed
+    if (currentLanguage !== 'en') {
+      return await translateResponse(fallbackText, currentLanguage);
+    }
+    
+    return fallbackText;
   };
 
   const generateResponse = async (userMessage) => {
@@ -82,6 +97,9 @@ const ChatBot = ({ document }) => {
         Document Summary: ${document?.summary ? document.summary.map(item => `${item.title}: ${item.content}`).join('\n') : 'No summary available'}
       `;
 
+      const languageInstruction = currentLanguage !== 'en' ? 
+        `Please respond in the language with code: ${currentLanguage}. If you cannot respond in this language, respond in English and I will translate it.` : '';
+
       const prompt = `
         You are an expert legal document assistant specializing in contract analysis and legal document interpretation. 
         You have access to the following document:
@@ -89,6 +107,7 @@ const ChatBot = ({ document }) => {
         ${documentContext}
         
         User Question: ${userMessage}
+        ${languageInstruction}
         
         Please provide a helpful, accurate, and professional response based on the document content. 
         If the question is about specific clauses or terms, reference the relevant sections. 
@@ -98,13 +117,22 @@ const ChatBot = ({ document }) => {
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      return response.text();
+      let responseText = response.text();
+      
+      // If the AI couldn't respond in the target language, translate it
+      if (currentLanguage !== 'en' && !responseText.includes('[')) {
+        responseText = await translateResponse(responseText, currentLanguage);
+      }
+      
+      return responseText;
     } catch (error) {
       console.error('Error generating response:', error);
       
       // Fallback to basic responses if API fails
       console.log('Using fallback response mechanism...');
-      return generateFallbackResponse(userMessage);
+      const fallbackResponse = await generateFallbackResponse(userMessage);
+      
+      return fallbackResponse;
     }
   };
 
@@ -137,7 +165,7 @@ const ChatBot = ({ document }) => {
       const errorMessage = {
         id: Date.now() + 1,
         type: 'bot',
-        content: "I apologize for the error. Please try asking your question again.",
+        content: `${t.error}. ${t.tryAgain}`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -172,8 +200,8 @@ const ChatBot = ({ document }) => {
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="text-white font-semibold text-sm">Legal Assistant</h3>
-                <p className="text-blue-100 text-xs">Ask me about your document</p>
+                <h3 className="text-white font-semibold text-sm">{t.chatAssistant}</h3>
+                <p className="text-blue-100 text-xs">{t.askQuestion}</p>
               </div>
             </div>
             <button
@@ -231,7 +259,7 @@ const ChatBot = ({ document }) => {
                     </div>
                     <div className="flex items-center space-x-1">
                       <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                      <span className="text-sm text-neutral-600">Analyzing document...</span>
+                      <span className="text-sm text-neutral-600">{t.loading}</span>
                     </div>
                   </div>
                 </div>
@@ -249,7 +277,7 @@ const ChatBot = ({ document }) => {
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask about contract terms, clauses, or any specific sections..."
+                  placeholder={t.chatPlaceholder}
                   className="w-full px-4 py-3 pr-12 text-sm border border-neutral-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-20 min-h-[48px]"
                   rows="1"
                   disabled={isLoading}
