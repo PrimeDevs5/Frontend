@@ -28,7 +28,7 @@ export const Navbar: React.FC = () => {
             <Link to="/dashboard" className={`text-base font-medium ${isActive('/dashboard') ? 'text-primary-500' : 'text-neutral-700 hover:text-primary-500'}`}>
               Dashboard
             </Link>
-            <a href="#features" className="text-base font-medium text-neutral-700 hover:text-primary-500">
+            <a href="/features" className="text-base font-medium text-neutral-700 hover:text-primary-500">
               Features
             </a>
             <a href="#pricing" className="text-base font-medium text-neutral-700 hover:text-primary-500">

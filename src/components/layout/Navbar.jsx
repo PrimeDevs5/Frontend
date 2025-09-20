@@ -97,7 +97,7 @@ export const Navbar = () => {
             <Link to="/dashboard" className={`block py-2 px-3 rounded-md ${isActive('/dashboard') ? 'bg-primary-50 text-primary-500' : 'text-neutral-700 hover:bg-neutral-100'}`} onClick={() => setIsMenuOpen(false)}>
               Dashboard
             </Link>
-            <a href="#features" className="block py-2 px-3 rounded-md text-neutral-700 hover:bg-neutral-100" onClick={() => setIsMenuOpen(false)}>
+            <a href="/features" className="block py-2 px-3 rounded-md text-neutral-700 hover:bg-neutral-100" onClick={() => setIsMenuOpen(false)}>
               Features
             </a>
             <a href="#pricing" className="block py-2 px-3 rounded-md text-neutral-700 hover:bg-neutral-100" onClick={() => setIsMenuOpen(false)}>

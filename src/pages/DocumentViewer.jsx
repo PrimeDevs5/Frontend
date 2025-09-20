@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { ArrowLeftIcon, DownloadIcon, ShareIcon, BookmarkIcon, PanelLeftIcon, PanelRightIcon, SearchIcon, ChevronDownIcon } from 'lucide-react';
+import { ArrowLeftIcon, DownloadIcon, ShareIcon, BookmarkIcon, PanelLeftIcon, PanelRightIcon, SearchIcon, ChevronDownIcon, AlertTriangle } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Tag } from '../components/ui/Tag';
+import ChatBot from '../components/ui/ChatBot';
+import RiskAnalysis from '../components/ui/RiskAnalysis';
 // Mock document data
 const mockDocument = {
   id: '1',
@@ -53,6 +55,7 @@ export const DocumentViewer = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [activeSection, setActiveSection] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRiskAnalysisOpen, setIsRiskAnalysisOpen] = useState(false);
   // In a real app, you would fetch the document based on the id
   const document = mockDocument;
   const togglePanel = () => {
@@ -84,6 +87,13 @@ export const DocumentViewer = () => {
               </div>
             </div>
             <div className="flex mt-4 md:mt-0 space-x-2">
+              <button 
+                onClick={() => setIsRiskAnalysisOpen(true)}
+                className="btn btn-outline btn-sm flex items-center hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Risk Analysis
+              </button>
               <button className="btn btn-outline btn-sm flex items-center">
                 <DownloadIcon className="h-4 w-4 mr-2" />
                 Download
@@ -125,7 +135,7 @@ export const DocumentViewer = () => {
               __html: document.content
             }} />
               {/* Toggle panel button (desktop) */}
-              <button className="hidden lg:block absolute -right-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white border border-neutral-200 rounded-full shadow-sm flex items-center justify-center" onClick={togglePanel}>
+              <button className="hidden lg:flex absolute -right-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-white border border-neutral-200 rounded-full shadow-sm items-center justify-center" onClick={togglePanel}>
                 {isPanelOpen ? <PanelRightIcon className="h-4 w-4" /> : <PanelLeftIcon className="h-4 w-4" />}
               </button>
             </Card>
@@ -191,5 +201,15 @@ export const DocumentViewer = () => {
             </div>}
         </div>
       </div>
+      
+      {/* Risk Analysis Modal */}
+      <RiskAnalysis 
+        document={document} 
+        isOpen={isRiskAnalysisOpen} 
+        onClose={() => setIsRiskAnalysisOpen(false)} 
+      />
+      
+      {/* ChatBot Component */}
+      <ChatBot document={document} />
     </div>;
 };

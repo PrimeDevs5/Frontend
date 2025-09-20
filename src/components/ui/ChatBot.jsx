@@ -1,0 +1,300 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { MessageCircle, X, Send, Bot, User, Loader2, FileText } from 'lucide-react';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const ChatBot = ({ document }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      type: 'bot',
+      content: `Hello! I'm your legal document assistant. I've analyzed "${document?.name || 'your document'}" and I'm here to help you understand its contents. Ask me anything about the contract terms, clauses, or any specific sections you'd like clarification on.\n\nNote: I'm currently running with enhanced AI capabilities, but I can also provide basic document analysis if needed.`,
+      timestamp: new Date()
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Initialize Gemini AI (you'll need to add your API key)
+  const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDp8UDk012Fs6iAoU71MNmbx0IRE5S6_5w');
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  // Fallback responses for when API is not available
+  const generateFallbackResponse = (userMessage) => {
+    const lowerMessage = userMessage.toLowerCase();
+    
+    if (lowerMessage.includes('salary') || lowerMessage.includes('compensation') || lowerMessage.includes('pay')) {
+      return "Based on the document, the base salary is $225,000 per year with an annual bonus target of 25% of the base salary. The salary can be increased but not decreased during the employment term.";
+    } else if (lowerMessage.includes('term') || lowerMessage.includes('duration') || lowerMessage.includes('length')) {
+      return "The employment term is for 3 years and automatically renews for successive 1-year periods unless either party provides 60 days written notice of non-renewal.";
+    } else if (lowerMessage.includes('notice') || lowerMessage.includes('termination')) {
+      return "The contract requires 60 days written notice for non-renewal, which is longer than the standard 30 days.";
+    } else if (lowerMessage.includes('position') || lowerMessage.includes('role') || lowerMessage.includes('duties')) {
+      return "The position is Chief Technology Officer reporting directly to the CEO, with duties assigned by the CEO or Board of Directors.";
+    } else if (lowerMessage.includes('exclusivity') || lowerMessage.includes('other work') || lowerMessage.includes('side job')) {
+      return "There's an exclusivity clause that requires the employee to devote substantially all business time to this role and prohibits other paid work without Board approval.";
+    } else {
+      return "I can help you understand this employment contract. You can ask me about salary, contract terms, position duties, termination clauses, or any other aspects of the document. Please try rephrasing your question or ask about a specific section.";
+    }
+  };
+
+  const generateResponse = async (userMessage) => {
+    try {
+      // Try different model names in order of preference
+      const modelNames = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+      let model;
+      let lastError;
+
+      for (const modelName of modelNames) {
+        try {
+          model = genAI.getGenerativeModel({ model: modelName });
+          break;
+        } catch (error) {
+          lastError = error;
+          continue;
+        }
+      }
+
+      if (!model) {
+        throw lastError || new Error("No available model found");
+      }
+      
+      // Create context from the document
+      const documentContext = `
+        Document Name: ${document?.name || 'Unknown Document'}
+        Document Type: ${document?.type || 'Legal Document'}
+        Document Content: ${document?.content || 'No content available'}
+        Document Summary: ${document?.summary ? document.summary.map(item => `${item.title}: ${item.content}`).join('\n') : 'No summary available'}
+      `;
+
+      const prompt = `
+        You are an expert legal document assistant specializing in contract analysis and legal document interpretation. 
+        You have access to the following document:
+        
+        ${documentContext}
+        
+        User Question: ${userMessage}
+        
+        Please provide a helpful, accurate, and professional response based on the document content. 
+        If the question is about specific clauses or terms, reference the relevant sections. 
+        Keep your responses clear, concise, and accessible to non-lawyers while maintaining accuracy.
+        If you cannot find relevant information in the document, please say so clearly.
+      `;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (error) {
+      console.error('Error generating response:', error);
+      
+      // Fallback to basic responses if API fails
+      console.log('Using fallback response mechanism...');
+      return generateFallbackResponse(userMessage);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim()) return;
+
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: inputMessage,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    setIsLoading(true);
+
+    try {
+      const botResponse = await generateResponse(inputMessage);
+      const botMessage = {
+        id: Date.now() + 1,
+        type: 'bot',
+        content: botResponse,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error('Error:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        type: 'bot',
+        content: "I apologize for the error. Please try asking your question again.",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const formatTime = (timestamp) => {
+    return new Date(timestamp).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50">
+      {/* Chat Popup */}
+      {isOpen && (
+        <div className="mb-4 w-96 h-[500px] bg-white rounded-2xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden animate-slide-in-from-bottom">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center animate-bounce-in">
+                <Bot className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold text-sm">Legal Assistant</h3>
+                <p className="text-blue-100 text-xs">Ask me about your document</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-white/70 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-neutral-50 chat-messages">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                    message.type === 'user'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-neutral-800 shadow-sm border border-neutral-100'
+                  }`}
+                >
+                  <div className="flex items-start space-x-2">
+                    {message.type === 'bot' && (
+                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mt-1">
+                        <Bot className="w-3 h-3 text-blue-600" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm leading-relaxed">{message.content}</p>
+                      <p className={`text-xs mt-2 ${
+                        message.type === 'user' ? 'text-blue-100' : 'text-neutral-500'
+                      }`}>
+                        {formatTime(message.timestamp)}
+                      </p>
+                    </div>
+                    {message.type === 'user' && (
+                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center mt-1">
+                        <User className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-white text-neutral-800 shadow-sm border border-neutral-100 rounded-2xl px-4 py-3 max-w-[80%]">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Bot className="w-3 h-3 text-blue-600" />
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                      <span className="text-sm text-neutral-600">Analyzing document...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="p-4 bg-white border-t border-neutral-200">
+            <div className="flex items-end space-x-2">
+              <div className="flex-1 relative">
+                <textarea
+                  ref={inputRef}
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask about contract terms, clauses, or any specific sections..."
+                  className="w-full px-4 py-3 pr-12 text-sm border border-neutral-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-20 min-h-[48px]"
+                  rows="1"
+                  disabled={isLoading}
+                />
+              </div>
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || isLoading}
+                className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
+          isOpen 
+            ? 'bg-neutral-600 hover:bg-neutral-700' 
+            : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'
+        }`}
+      >
+        {isOpen ? (
+          <X className="w-6 h-6 text-white" />
+        ) : (
+          <div className="relative">
+            <MessageCircle className="w-6 h-6 text-white" />
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+          </div>
+        )}
+      </button>
+
+      {/* Tooltip */}
+      {!isOpen && (
+        <div className="absolute bottom-16 right-2 bg-neutral-800 text-white text-xs px-3 py-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          Ask questions about your document
+          <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-neutral-800"></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ChatBot;

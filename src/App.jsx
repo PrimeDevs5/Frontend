@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Landing } from './pages/Landing';
+import { Landing } from './pages/LandingImproved';
 import { Dashboard } from './pages/Dashboard';
 import { DocumentViewer } from './pages/DocumentViewer';
 import { Layout } from './components/layout/Layout';
