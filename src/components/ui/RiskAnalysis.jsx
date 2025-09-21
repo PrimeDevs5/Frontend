@@ -40,34 +40,50 @@ const RiskAnalysis = ({ document, content, summary, isOpen, onClose }) => {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Please analyze the following document for potential risks and concerns. Focus on identifying specific risks in these categories: Legal, Financial, Operational, Compliance, and Timeline.
+              text: `You are a risk analysis expert. Analyze the following document for potential risks and concerns. Focus on identifying specific risks in these categories: Legal, Financial, Operational, Compliance, and Timeline.
 
 Document title: ${document?.name || 'Unknown Document'}
 Document summary: ${summary || 'No summary available'}
 Document content: ${content || 'No content available'}
 
-Please provide a detailed risk analysis in the following JSON format:
+IMPORTANT: Respond ONLY with valid JSON in this exact format. Do not include any explanatory text before or after the JSON:
+
 {
   "risks": [
     {
       "id": 1,
-      "title": "Risk Title",
+      "title": "Risk Title Here",
       "description": "Detailed description of the risk and its implications",
-      "level": "critical|high|medium|low",
-      "category": "Legal|Financial|Operational|Compliance|Timeline",
+      "level": "critical",
+      "category": "Legal",
       "recommendation": "Specific recommendation to mitigate this risk"
+    },
+    {
+      "id": 2,
+      "title": "Another Risk Title",
+      "description": "Another detailed description",
+      "level": "high",
+      "category": "Financial",
+      "recommendation": "Another specific recommendation"
     }
   ]
 }
 
-Focus on actual content from the document. Identify real risks based on what's written, not hypothetical scenarios. Be specific and actionable.`
+Rules:
+- level must be exactly one of: "critical", "high", "medium", "low"
+- category must be exactly one of: "Legal", "Financial", "Operational", "Compliance", "Timeline"
+- Use double quotes for all strings
+- No trailing commas
+- Focus on actual content from the document
+- Provide 3-6 risks maximum
+- Be specific and actionable`
             }]
           }],
           generationConfig: {
-            temperature: 0.3,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 2048,
+            temperature: 0.1,
+            topK: 20,
+            topP: 0.8,
+            maxOutputTokens: 1024,
           }
         })
       });
@@ -83,13 +99,60 @@ Focus on actual content from the document. Identify real risks based on what's w
         throw new Error('No analysis received from API');
       }
 
-      // Extract JSON from the response
-      const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
+      console.log('🔍 Risk Analysis - Raw AI Response:', analysisText);
+
+      // Try multiple methods to extract and clean JSON
+      let analysisData;
+      
+      // Method 1: Try to find JSON between ```json and ``` markers
+      let jsonMatch = analysisText.match(/```json\s*(\{[\s\S]*?\})\s*```/i);
+      
+      // Method 2: Try to find JSON between { and } 
       if (!jsonMatch) {
-        throw new Error('Could not parse risk analysis response');
+        jsonMatch = analysisText.match(/\{[\s\S]*\}/);
+      }
+      
+      // Method 3: Try to extract just the risks array if full JSON fails
+      if (!jsonMatch) {
+        const risksMatch = analysisText.match(/"risks"\s*:\s*\[([\s\S]*?)\]/);
+        if (risksMatch) {
+          jsonMatch = [`{"risks":[${risksMatch[1]}]}`];
+        }
       }
 
-      const analysisData = JSON.parse(jsonMatch[0]);
+      if (!jsonMatch) {
+        throw new Error('Could not find JSON in response');
+      }
+
+      let jsonString = jsonMatch[0];
+      
+      // Clean up common JSON issues
+      jsonString = jsonString
+        .replace(/```json\s*/gi, '') // Remove markdown json markers
+        .replace(/\s*```/g, '') // Remove closing markdown markers
+        .replace(/'/g, '"') // Replace single quotes with double quotes
+        .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+        .replace(/\n/g, ' ') // Replace newlines with spaces
+        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+        .trim();
+
+      console.log('🔧 Risk Analysis - Cleaned JSON String:', jsonString);
+
+      try {
+        analysisData = JSON.parse(jsonString);
+      } catch (parseError) {
+        console.error('🚨 JSON Parse Error:', parseError);
+        console.log('🚨 Failed JSON String:', jsonString);
+        
+        // Last resort: try to manually construct risks from the response text
+        const manualRisks = extractRisksManually(analysisText);
+        if (manualRisks.length > 0) {
+          analysisData = { risks: manualRisks };
+        } else {
+          throw new Error(`JSON parsing failed: ${parseError.message}`);
+        }
+      }
+
       setRisks(analysisData.risks || []);
 
     } catch (error) {
@@ -102,6 +165,51 @@ Focus on actual content from the document. Identify real risks based on what's w
     } finally {
       setLoading(false);
     }
+  };
+
+  const extractRisksManually = (text) => {
+    const manualRisks = [];
+    
+    try {
+      // Look for risk patterns in the text
+      const riskPatterns = [
+        /title["\s]*:["\s]*([^"]+)["]/gi,
+        /description["\s]*:["\s]*([^"]+)["]/gi,
+        /level["\s]*:["\s]*([^"]+)["]/gi,
+        /category["\s]*:["\s]*([^"]+)["]/gi,
+        /recommendation["\s]*:["\s]*([^"]+)["]/gi
+      ];
+      
+      // Try to extract individual risk components
+      const titles = [...text.matchAll(/["']title["']\s*:\s*["']([^"']+)["']/gi)].map(m => m[1]);
+      const descriptions = [...text.matchAll(/["']description["']\s*:\s*["']([^"']+)["']/gi)].map(m => m[1]);
+      const levels = [...text.matchAll(/["']level["']\s*:\s*["']([^"']+)["']/gi)].map(m => m[1]);
+      const categories = [...text.matchAll(/["']category["']\s*:\s*["']([^"']+)["']/gi)].map(m => m[1]);
+      const recommendations = [...text.matchAll(/["']recommendation["']\s*:\s*["']([^"']+)["']/gi)].map(m => m[1]);
+      
+      // Create risks from matched components
+      const maxRisks = Math.max(titles.length, descriptions.length, levels.length, categories.length);
+      
+      for (let i = 0; i < maxRisks; i++) {
+        if (titles[i] || descriptions[i]) {
+          manualRisks.push({
+            id: i + 1,
+            title: titles[i] || `Risk ${i + 1}`,
+            description: descriptions[i] || 'Risk identified in document analysis',
+            level: levels[i] || 'medium',
+            category: categories[i] || 'Legal',
+            recommendation: recommendations[i] || 'Review this risk carefully with appropriate professionals'
+          });
+        }
+      }
+      
+      console.log(`🔧 Manual extraction found ${manualRisks.length} risks`);
+      
+    } catch (error) {
+      console.error('Manual risk extraction failed:', error);
+    }
+    
+    return manualRisks;
   };
 
   const generateFallbackRisks = () => {
