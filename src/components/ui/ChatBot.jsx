@@ -3,7 +3,7 @@ import { MessageCircle, X, Send, Bot, User, Loader2, FileText } from 'lucide-rea
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useLanguage } from '../../contexts/LanguageContext.jsx';
 
-const ChatBot = ({ document }) => {
+const ChatBot = ({ document, content, summary }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { currentLanguage, translate, translateResponse, t } = useLanguage();
   const [messages, setMessages] = useState([]);
@@ -46,18 +46,42 @@ const ChatBot = ({ document }) => {
     
     let fallbackText = "";
     
-    if (lowerMessage.includes('salary') || lowerMessage.includes('compensation') || lowerMessage.includes('pay')) {
-      fallbackText = "Based on the document, the base salary is $225,000 per year with an annual bonus target of 25% of the base salary. The salary can be increased but not decreased during the employment term.";
-    } else if (lowerMessage.includes('term') || lowerMessage.includes('duration') || lowerMessage.includes('length')) {
-      fallbackText = "The employment term is for 3 years and automatically renews for successive 1-year periods unless either party provides 60 days written notice of non-renewal.";
-    } else if (lowerMessage.includes('notice') || lowerMessage.includes('termination')) {
-      fallbackText = "The contract requires 60 days written notice for non-renewal, which is longer than the standard 30 days.";
-    } else if (lowerMessage.includes('position') || lowerMessage.includes('role') || lowerMessage.includes('duties')) {
-      fallbackText = "The position is Chief Technology Officer reporting directly to the CEO, with duties assigned by the CEO or Board of Directors.";
-    } else if (lowerMessage.includes('exclusivity') || lowerMessage.includes('other work') || lowerMessage.includes('side job')) {
-      fallbackText = "There's an exclusivity clause that requires the employee to devote substantially all business time to this role and prohibits other paid work without Board approval.";
+    // Try to use actual document content first
+    if (content && content.length > 0) {
+      // Simple content matching for key terms
+      if (lowerMessage.includes('salary') || lowerMessage.includes('compensation') || lowerMessage.includes('pay')) {
+        const salaryMatch = content.match(/salary|compensation|pay|\$[\d,]+/gi);
+        if (salaryMatch) {
+          fallbackText = `Based on the document, I can see salary/compensation information: ${salaryMatch.slice(0, 3).join(', ')}. Please ask a more specific question about compensation for detailed information.`;
+        } else {
+          fallbackText = "I can see the document content but couldn't find specific salary information. Please ask about specific compensation details.";
+        }
+      } else if (lowerMessage.includes('what') && (lowerMessage.includes('document') || lowerMessage.includes('content'))) {
+        // Provide a summary of what's in the document
+        const documentSummaryText = summary && Array.isArray(summary) && summary.length > 0 
+          ? `This document contains the following sections: ${summary.map(item => item.title).join(', ')}.`
+          : `This document contains information about ${document?.name || 'the contract'}. The main content includes various terms and conditions.`;
+        
+        fallbackText = documentSummaryText + " Ask me about specific sections or terms you'd like to understand better.";
+      } else {
+        // General response with document context
+        fallbackText = `I have access to the document "${document?.name || 'your document'}" and its content. You can ask me specific questions about any part of it, such as terms, clauses, obligations, or specific sections. What would you like to know?`;
+      }
     } else {
-      fallbackText = "I can help you understand this employment contract. You can ask me about salary, contract terms, position duties, termination clauses, or any other aspects of the document. Please try rephrasing your question or ask about a specific section.";
+      // Original fallback responses when no content is available
+      if (lowerMessage.includes('salary') || lowerMessage.includes('compensation') || lowerMessage.includes('pay')) {
+        fallbackText = "Based on the document, the base salary is $225,000 per year with an annual bonus target of 25% of the base salary. The salary can be increased but not decreased during the employment term.";
+      } else if (lowerMessage.includes('term') || lowerMessage.includes('duration') || lowerMessage.includes('length')) {
+        fallbackText = "The employment term is for 3 years and automatically renews for successive 1-year periods unless either party provides 60 days written notice of non-renewal.";
+      } else if (lowerMessage.includes('notice') || lowerMessage.includes('termination')) {
+        fallbackText = "The contract requires 60 days written notice for non-renewal, which is longer than the standard 30 days.";
+      } else if (lowerMessage.includes('position') || lowerMessage.includes('role') || lowerMessage.includes('duties')) {
+        fallbackText = "The position is Chief Technology Officer reporting directly to the CEO, with duties assigned by the CEO or Board of Directors.";
+      } else if (lowerMessage.includes('exclusivity') || lowerMessage.includes('other work') || lowerMessage.includes('side job')) {
+        fallbackText = "There's an exclusivity clause that requires the employee to devote substantially all business time to this role and prohibits other paid work without Board approval.";
+      } else {
+        fallbackText = "I can help you understand this document. You can ask me about specific terms, clauses, or sections. Please try rephrasing your question or ask about a specific part of the document.";
+      }
     }
     
     // Translate the fallback response if needed
@@ -71,7 +95,7 @@ const ChatBot = ({ document }) => {
   const generateResponse = async (userMessage) => {
     try {
       // Try different model names in order of preference
-      const modelNames = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+      const modelNames = ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
       let model;
       let lastError;
 
@@ -93,8 +117,8 @@ const ChatBot = ({ document }) => {
       const documentContext = `
         Document Name: ${document?.name || 'Unknown Document'}
         Document Type: ${document?.type || 'Legal Document'}
-        Document Content: ${document?.content || 'No content available'}
-        Document Summary: ${document?.summary ? document.summary.map(item => `${item.title}: ${item.content}`).join('\n') : 'No summary available'}
+        Document Content: ${content || 'No content available'}
+        Document Summary: ${summary && Array.isArray(summary) ? summary.map(item => `${item.title}: ${item.content}`).join('\n') : 'No summary available'}
       `;
 
       const languageInstruction = currentLanguage !== 'en' ? 

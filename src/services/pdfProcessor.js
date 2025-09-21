@@ -1,31 +1,23 @@
-import * as pdfjsLib from 'pdfjs-dist';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { configurePDFWorker } from './pdfWorkerHelper.js';
 
-// Configure PDF.js worker with multiple fallback options
-const configureWorker = () => {
-  if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+// Configure PDF.js worker with fallbacks
+let pdfjsLib = null;
+let isConfigured = false;
+
+const initializePDFJS = async () => {
+  if (!isConfigured) {
     try {
-      // Try using a version that matches the installed package better
-      // Using jsdelivr CDN which is more reliable for exact version matching
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/pdf.worker.min.js';
-      console.log('📄 PDFProcessor - Using jsdelivr CDN worker');
+      pdfjsLib = await configurePDFWorker();
+      isConfigured = true;
+      console.log('✅ PDF.js initialized successfully');
     } catch (error) {
-      console.warn('Failed to set up PDF.js worker, using local fallback');
-      try {
-        // Local fallback
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.min.js',
-          import.meta.url
-        ).toString();
-      } catch (localError) {
-        console.error('Failed to configure PDF.js worker:', localError);
-      }
+      console.error('❌ Failed to initialize PDF.js:', error);
+      throw error;
     }
   }
+  return pdfjsLib;
 };
-
-// Initialize worker configuration
-configureWorker();
 
 class PDFProcessor {
   constructor() {
@@ -36,17 +28,21 @@ class PDFProcessor {
   async extractTextFromPDF(file) {
     try {
       console.log('📄 PDFProcessor - Starting text extraction from:', file.name);
-      console.log('📄 PDFProcessor - Worker src:', pdfjsLib.GlobalWorkerOptions.workerSrc);
+      
+      // Initialize PDF.js with robust worker configuration
+      const pdfjs = await initializePDFJS();
+      console.log('📄 PDFProcessor - Worker src:', pdfjs.GlobalWorkerOptions.workerSrc);
       
       const arrayBuffer = await file.arrayBuffer();
       
       console.log('📄 PDFProcessor - File loaded as ArrayBuffer, size:', arrayBuffer.byteLength);
       
-      // Configure loading parameters
-      const loadingTask = pdfjsLib.getDocument({ 
+      // Configure loading parameters with error handling
+      const loadingTask = pdfjs.getDocument({ 
         data: arrayBuffer,
         useSystemFonts: true,
-        disableFontFace: true // Disable font loading to avoid issues
+        disableFontFace: true, // Disable font loading to avoid issues
+        verbosity: 0 // Reduce PDF.js console output
       });
       
       const pdf = await loadingTask.promise;

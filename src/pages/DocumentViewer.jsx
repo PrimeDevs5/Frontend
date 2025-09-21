@@ -603,12 +603,19 @@ export const DocumentViewer = () => {
 
       {/* Risk Analysis Modal */}
       <RiskAnalysis 
+        document={document}
+        content={documentContent}
+        summary={documentSummary}
         isOpen={isRiskAnalysisOpen}
         onClose={() => setIsRiskAnalysisOpen(false)}
       />
       
       {/* ChatBot Component */}
-      <ChatBot document={document} />
+      <ChatBot 
+        document={document} 
+        content={documentContent}
+        summary={documentSummary}
+      />
     </div>
   );
 };
