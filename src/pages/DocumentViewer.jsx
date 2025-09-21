@@ -98,13 +98,74 @@ const generateDocumentContent = async (apiResult, t, translateResponse, currentL
       content += `<div class="detailed-analysis mb-6">`;
       content += `<h2 class="text-xl font-bold mb-3 text-gray-900">Detailed Document Content</h2>`;
       
+      // Debug: Log the structure of the first analysis item
+      console.log('🔍 First subsection_analysis item structure:', Object.keys(result.subsection_analysis[0]));
+      console.log('🔍 Sample analysis item:', result.subsection_analysis[0]);
+      
       result.subsection_analysis.forEach((analysis, index) => {
+        // Log content lengths for debugging
+        console.log(`📊 Section ${index + 1} content lengths:`, {
+          refined_text: analysis.refined_text?.length || 0,
+          original_text: analysis.original_text?.length || 0,
+          extracted_text: analysis.extracted_text?.length || 0,
+          content: analysis.content?.length || 0
+        });
+        
         content += `<div class="analysis-item mb-4 p-4 border rounded-lg bg-gray-50">`;
         content += `<h3 class="font-semibold text-lg mb-2">Section ${index + 1}</h3>`;
-        content += `<div class="refined-text whitespace-pre-line text-gray-800">${analysis.refined_text || 'No content available'}</div>`;
+        
+        // Show refined_text with full content
+        if (analysis.refined_text) {
+          content += `<div class="refined-text mb-3">`;
+          content += `<h4 class="font-medium text-md mb-2 text-gray-700">Processed Content:</h4>`;
+          content += `<div class="whitespace-pre-line text-gray-800 leading-relaxed">${analysis.refined_text}</div>`;
+          content += `</div>`;
+        }
+        
+        // Show original_text if available for comparison
+        if (analysis.original_text && analysis.original_text !== analysis.refined_text) {
+          content += `<div class="original-text mb-3 p-3 bg-blue-50 rounded">`;
+          content += `<h4 class="font-medium text-md mb-2 text-blue-700">Original Text:</h4>`;
+          content += `<div class="whitespace-pre-line text-blue-800 text-sm leading-relaxed">${analysis.original_text}</div>`;
+          content += `</div>`;
+        }
+        
+        // Show extracted_text if available
+        if (analysis.extracted_text && analysis.extracted_text !== analysis.refined_text && analysis.extracted_text !== analysis.original_text) {
+          content += `<div class="extracted-text mb-3 p-3 bg-green-50 rounded">`;
+          content += `<h4 class="font-medium text-md mb-2 text-green-700">Extracted Text:</h4>`;
+          content += `<div class="whitespace-pre-line text-green-800 text-sm leading-relaxed">${analysis.extracted_text}</div>`;
+          content += `</div>`;
+        }
+        
+        // Show any additional content fields
+        if (analysis.content && analysis.content !== analysis.refined_text) {
+          content += `<div class="additional-content mb-3 p-3 bg-purple-50 rounded">`;
+          content += `<h4 class="font-medium text-md mb-2 text-purple-700">Additional Content:</h4>`;
+          content += `<div class="whitespace-pre-line text-purple-800 text-sm leading-relaxed">${analysis.content}</div>`;
+          content += `</div>`;
+        }
+        
+        // Show analysis summary or insights if available
+        if (analysis.summary || analysis.insights || analysis.key_points) {
+          content += `<div class="analysis-insights mb-3 p-3 bg-yellow-50 rounded">`;
+          content += `<h4 class="font-medium text-md mb-2 text-yellow-700">Analysis Insights:</h4>`;
+          if (analysis.summary) content += `<p class="text-yellow-800 text-sm mb-2"><strong>Summary:</strong> ${analysis.summary}</p>`;
+          if (analysis.insights) content += `<p class="text-yellow-800 text-sm mb-2"><strong>Insights:</strong> ${analysis.insights}</p>`;
+          if (analysis.key_points) content += `<p class="text-yellow-800 text-sm mb-2"><strong>Key Points:</strong> ${analysis.key_points}</p>`;
+          content += `</div>`;
+        }
+        
+        // Default fallback if no content available
+        if (!analysis.refined_text && !analysis.original_text && !analysis.extracted_text && !analysis.content) {
+          content += `<div class="text-gray-500 italic">No detailed content available for this section.</div>`;
+        }
+        
         content += `<div class="mt-2 text-sm text-gray-600">`;
         content += `<span>Document: ${analysis.document}</span> | `;
         content += `<span>Page: ${analysis.page_number}</span>`;
+        if (analysis.section_type) content += ` | <span>Type: ${analysis.section_type}</span>`;
+        if (analysis.confidence_score) content += ` | <span>Confidence: ${Math.round(analysis.confidence_score * 100)}%</span>`;
         content += `</div></div>`;
       });
       content += `</div>`;
