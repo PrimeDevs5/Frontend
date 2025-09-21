@@ -6,7 +6,10 @@ import { SearchBar } from '../components/ui/SearchBar';
 import { ProgressIndicator } from '../components/ui/ProgressIndicator';
 import { Tag } from '../components/ui/Tag';
 import { UploadButton } from '../components/ui/UploadButton';
-// Mock data for documents
+import { DocumentInput } from '../components/ui/DocumentInput';
+import { useDocumentProcessing } from '../contexts/DocumentProcessingContext';
+
+// Mock data for documents (fallback when no processed documents exist)
 const mockDocuments = [{
   id: '1',
   name: 'Employment_Contract_2023.pdf',
@@ -43,22 +46,63 @@ const mockDocuments = [{
 export const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
-  const [documents, setDocuments] = useState(mockDocuments);
-  const handleFileSelect = file => {
-    console.log('File selected:', file);
-    // In a real app, you would upload the file and add it to the documents list
-    const newDocument = {
-      id: String(documents.length + 1),
-      name: file.name,
-      type: 'New',
-      uploadDate: new Date().toISOString().split('T')[0],
-      status: 'pending',
-      progress: 0,
-      pages: 0
-    };
-    setDocuments([newDocument, ...documents]);
+  
+  const { processedDocuments, processingStatus, currentJob, removeDocument } = useDocumentProcessing();
+  
+  console.log('Dashboard - Processed Documents:', processedDocuments);
+  console.log('Dashboard - Processing Status:', processingStatus);
+  console.log('Dashboard - Current Job:', currentJob);
+  
+  const handleFileSelect = result => {
+    console.log('Dashboard - File processed result:', result);
+    // The DocumentProcessingContext already handles adding to processedDocuments
+    // No need to manually manage documents array anymore
   };
-  const filters = ['All', 'Contracts', 'NDAs', 'Agreements', 'Leases'];
+
+  // Convert processed documents to dashboard format
+  const getDocumentCards = () => {
+    const processedCards = processedDocuments.map(doc => {
+      console.log('Dashboard - Converting document:', doc);
+      
+      return {
+        id: doc.id,
+        name: doc.files?.join(', ') || 'Unknown Document',
+        type: 'Analysis',
+        uploadDate: doc.completedAt ? new Date(doc.completedAt).toLocaleDateString() : new Date().toLocaleDateString(),
+        status: 'complete', // Processed documents are always complete
+        progress: 100,
+        pages: doc.result?.metadata?.total_pages || 'N/A',
+        isProcessed: true, // Flag to identify processed documents
+        hasGeminiData: !!doc.result // Check if we have API result data
+      };
+    });
+
+    // Add current processing job if it exists
+    if (currentJob && processingStatus === 'processing') {
+      processedCards.unshift({
+        id: currentJob.job_id || 'current',
+        name: 'Processing...',
+        type: 'Processing',
+        uploadDate: new Date().toLocaleDateString(),
+        status: 'processing',
+        progress: 50,
+        pages: 'N/A',
+        isProcessed: false,
+        hasGeminiData: false
+      });
+    }
+
+    // If no processed documents, show mock data for demo
+    if (processedCards.length === 0) {
+      console.log('Dashboard - No processed documents, showing mock data');
+      return mockDocuments;
+    }
+
+    return processedCards;
+  };
+
+  const documents = getDocumentCards();
+  const filters = ['All', 'Contracts', 'NDAs', 'Agreements', 'Leases', 'Analysis'];
   return <div className="bg-neutral-50 min-h-screen pb-12">
       <div className="bg-white border-b border-neutral-200 mb-6">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -71,8 +115,9 @@ export const Dashboard = () => {
                 Upload, process, and review your legal documents
               </p>
             </div>
-            <div className="mt-4 md:mt-0">
-              <UploadButton onFileSelect={handleFileSelect} variant="accent" label="Upload New Document" />
+            <div className="mt-4 md:mt-0 flex space-x-3">
+              <UploadButton onFileSelect={handleFileSelect} variant="accent" label="Upload PDF" />
+              <DocumentInput onDocumentSubmit={handleFileSelect} />
             </div>
           </div>
         </div>
@@ -101,12 +146,15 @@ export const Dashboard = () => {
               <PlusIcon className="h-8 w-8 text-neutral-500" />
             </div>
             <h3 className="text-lg font-medium text-neutral-900 mb-2">
-              Upload a document
+              Add a document
             </h3>
             <p className="text-neutral-600 text-sm mb-4">
-              Upload a legal document to analyze and simplify
+              Upload a PDF file or input text to analyze and simplify
             </p>
-            <UploadButton onFileSelect={handleFileSelect} variant="outline" size="sm" label="Select File" />
+            <div className="flex space-x-2">
+              <UploadButton onFileSelect={handleFileSelect} variant="outline" size="sm" label="Upload PDF" />
+              <DocumentInput onDocumentSubmit={handleFileSelect} />
+            </div>
           </div>
           {/* Document cards */}
           {documents.map(doc => <Card key={doc.id} hover className="overflow-hidden">
@@ -124,26 +172,49 @@ export const Dashboard = () => {
                     </p>
                   </div>
                 </div>
-                <Tag label={doc.type} color={doc.type === 'Contract' ? 'blue' : doc.type === 'NDA' ? 'purple' : doc.type === 'Agreement' ? 'green' : 'gray'} />
+                <Tag label={doc.type} color={doc.type === 'Contract' ? 'blue' : doc.type === 'NDA' ? 'purple' : doc.type === 'Agreement' ? 'green' : doc.type === 'Analysis' ? 'blue' : 'gray'} />
               </div>
               {doc.status !== 'complete' ? <ProgressIndicator progress={doc.progress} status={doc.status} className="mb-4" /> : <div className="mb-4 p-3 bg-neutral-50 rounded-lg border border-neutral-200">
                   <p className="text-sm text-neutral-700">
-                    This document contains an automatic renewal clause that
-                    requires 30 days notice for cancellation.
+                    {doc.isProcessed 
+                      ? 'Document analysis completed successfully. View to see detailed results.'
+                      : 'This document contains an automatic renewal clause that requires 30 days notice for cancellation.'
+                    }
                   </p>
                 </div>}
               <div className="flex justify-between items-center">
-                <Link to={`/document/${doc.id}`} className="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center">
-                  <EyeIcon className="h-4 w-4 mr-1" />
-                  View
-                </Link>
+                {/* Only show View button for completed documents with Gemini data */}
+                {doc.status === 'complete' && doc.hasGeminiData ? (
+                  <Link to={`/document/${doc.id}`} className="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center">
+                    <EyeIcon className="h-4 w-4 mr-1" />
+                    View Analysis
+                  </Link>
+                ) : doc.status === 'complete' && !doc.isProcessed ? (
+                  <Link to={`/document/${doc.id}`} className="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center">
+                    <EyeIcon className="h-4 w-4 mr-1" />
+                    View
+                  </Link>
+                ) : (
+                  <div className="text-neutral-400 text-sm font-medium flex items-center">
+                    <EyeIcon className="h-4 w-4 mr-1" />
+                    {doc.status === 'processing' ? 'Processing...' : 'Preparing...'}
+                  </div>
+                )}
                 <div className="flex space-x-2">
                   <button className="p-2 rounded-full hover:bg-neutral-100">
                     <DownloadIcon className="h-4 w-4 text-neutral-700" />
                   </button>
-                  <button className="p-2 rounded-full hover:bg-neutral-100">
-                    <TrashIcon className="h-4 w-4 text-neutral-700" />
-                  </button>
+                  {doc.isProcessed && (
+                    <button 
+                      onClick={() => {
+                        console.log('Dashboard - Removing document:', doc.id);
+                        removeDocument(doc.id);
+                      }}
+                      className="p-2 rounded-full hover:bg-neutral-100"
+                    >
+                      <TrashIcon className="h-4 w-4 text-neutral-700" />
+                    </button>
+                  )}
                 </div>
               </div>
             </Card>)}

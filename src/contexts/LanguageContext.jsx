@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { translationRateLimiter } from '../utils/rateLimiter';
 
 const translations = {
   en: {
@@ -81,7 +82,23 @@ const translations = {
     loading: "Loading...",
     error: "Error occurred",
     tryAgain: "Please try again",
-    success: "Success"
+    success: "Success",
+    
+    // Upload Dialog UI
+    ui: {
+      uploadDocuments: "Upload Documents",
+      selectedFiles: "Selected Files",
+      persona: "Your Role/Persona",
+      personaPlaceholder: "e.g., Legal professional, Student, Business owner...",
+      jobToBeDone: "What do you want to accomplish?",
+      jobPlaceholder: "e.g., Analyze contract terms, Extract key information, Summarize document...",
+      cancel: "Cancel",
+      uploadAndProcess: "Upload & Process",
+      uploading: "Uploading...",
+      processing: "Processing...",
+      uploadSuccess: "Files uploaded successfully",
+      processingComplete: "Document processing completed"
+    }
   },
   hi: {
     // Document Content - Hindi
@@ -161,7 +178,23 @@ const translations = {
     loading: "लोड हो रहा है...",
     error: "त्रुटि हुई",
     tryAgain: "कृपया फिर से कोशिश करें",
-    success: "सफलता"
+    success: "सफलता",
+    
+    // Upload Dialog UI - Hindi
+    ui: {
+      uploadDocuments: "दस्तावेज़ अपलोड करें",
+      selectedFiles: "चुनी गई फ़ाइलें",
+      persona: "आपकी भूमिका/व्यक्तित्व",
+      personaPlaceholder: "उदा., कानूनी पेशेवर, छात्र, व्यापारी...",
+      jobToBeDone: "आप क्या हासिल करना चाहते हैं?",
+      jobPlaceholder: "उदा., अनुबंध की शर्तों का विश्लेषण, मुख्य जानकारी निकालना, दस्तावेज़ का सारांश...",
+      cancel: "रद्द करें",
+      uploadAndProcess: "अपलोड और प्रक्रिया",
+      uploading: "अपलोड हो रहा है...",
+      processing: "प्रसंस्करण...",
+      uploadSuccess: "फ़ाइलें सफलतापूर्वक अपलोड हुईं",
+      processingComplete: "दस्तावेज़ प्रसंस्करण पूर्ण"
+    }
   },
   
   // Tamil translations
@@ -501,7 +534,7 @@ export const LanguageProvider = ({ children }) => {
       const targetLanguageName = languageNames[targetLanguage] || targetLanguage;
       
       try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const translationPrompt = `Translate the following text to ${targetLanguageName}. Provide only the translation:
 
 ${text}`;
