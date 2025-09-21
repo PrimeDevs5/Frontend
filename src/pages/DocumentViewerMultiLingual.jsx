@@ -36,7 +36,7 @@ const getMockDocument = (id) => ({
   content: `
     COMMERCIAL LEASE AGREEMENT
     
-    This Commercial Lease Agreement ("Agreement") is entered into on January 15, 2024, between LegalDoc Analytics LLC ("Landlord") and TechStart Innovations Inc. ("Tenant").
+    This Commercial Lease Agreement ("Agreement") is entered into on January 15, 2024, between DocQueries Analytics LLC ("Landlord") and TechStart Innovations Inc. ("Tenant").
     
     1. PREMISES
     Landlord hereby leases to Tenant the commercial space located at 123 Business Park Drive, Suite 400, consisting of approximately 2,500 square feet ("Premises").

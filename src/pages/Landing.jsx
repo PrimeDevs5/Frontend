@@ -31,7 +31,7 @@ export const Landing = () => {
                 Understand your legal documents in plain English — fast
               </h1>
               <p className="mt-6 text-lg md:text-xl text-neutral-700 max-w-lg">
-                LegalDoc uses AI to translate complex legal jargon into simple,
+                DocQueries uses AI to translate complex legal jargon into simple,
                 actionable insights that anyone can understand.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
@@ -107,7 +107,7 @@ export const Landing = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-neutral-900">
-              How LegalDoc Works
+              How DocQueries Works
             </h2>
             <p className="mt-4 text-lg text-neutral-700 max-w-2xl mx-auto">
               Our platform uses advanced AI to break down complex legal
@@ -159,7 +159,7 @@ export const Landing = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-neutral-900">
-              Why Choose LegalDoc
+              Why Choose DocQueries
             </h2>
             <p className="mt-4 text-lg text-neutral-700 max-w-2xl mx-auto">
               Our platform helps professionals and individuals save time and
@@ -226,7 +226,7 @@ export const Landing = () => {
           </h2>
           <p className="mt-4 text-lg text-primary-100 max-w-2xl mx-auto">
             Join thousands of professionals who are saving time and making
-            better decisions with LegalDoc.
+            better decisions with DocQueries.
           </p>
           <div className="mt-8">
             <Link to={dashboardOrAuthLink} className="btn bg-white text-primary-600 hover:bg-neutral-100 btn-lg">

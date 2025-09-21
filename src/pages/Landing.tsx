@@ -127,7 +127,7 @@ export const Landing: React.FC = () => {
               variants={itemVariants}
               className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto mb-12 leading-relaxed font-medium"
             >
-              <span className="text-blue-600 font-semibold">LegalDoc</span> uses AI to translate complex legal jargon into simple, actionable insights that anyone can understand. 
+              <span className="text-blue-600 font-semibold">DocQueries</span> uses AI to translate complex legal jargon into simple, actionable insights that anyone can understand. 
               <span className="block mt-2 text-lg text-gray-500">No legal background required.</span>
             </motion.p>
             

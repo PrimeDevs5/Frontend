@@ -10,7 +10,7 @@ export const Footer = () => {
                 <span className="text-white font-bold text-xl">L</span>
               </div>
               <span className="ml-2 text-xl font-bold text-neutral-900">
-                LegalDoc
+                DocQueries
               </span>
             </Link>
             <p className="mt-4 text-neutral-600 max-w-md">
@@ -75,7 +75,7 @@ export const Footer = () => {
         </div>
         <div className="mt-12 pt-8 border-t border-neutral-200 flex flex-col md:flex-row justify-between items-center">
           <p className="text-neutral-600 text-sm">
-            © 2023 LegalDoc. All rights reserved.
+            © 2023 DocQueries. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <a href="#terms" className="text-neutral-600 hover:text-primary-500 text-sm">

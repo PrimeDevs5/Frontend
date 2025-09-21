@@ -363,7 +363,7 @@ export const Landing: React.FC = () => {
           <FadeInWhenVisible>
             <div className="text-center mb-20">
               <h2 className="text-4xl md:text-5xl font-light text-gray-900 mb-6">
-                Why choose LegalDoc?
+                Why choose DocQueries?
               </h2>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto font-light">
                 Simple, powerful, and designed for everyone
@@ -520,7 +520,7 @@ export const Landing: React.FC = () => {
                   onFileSelect={handleFileSelect} 
                   variant="accent" 
                   size="lg" 
-                  label="Try LegalDoc Free" 
+                  label="Try DocQueries Free" 
                   className="bg-white text-indigo-700 hover:bg-gray-50 shadow-2xl text-xl px-12 py-4 rounded-full font-medium border-0"
                 />
               </motion.div>

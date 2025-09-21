@@ -429,7 +429,7 @@ export const Landing: React.FC = () => {
           <FadeInWhenVisible>
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                How LegalDoc works
+                How DocQueries works
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 Three simple steps to understand any legal document
